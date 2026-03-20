@@ -8,7 +8,7 @@
   let confirmUndo = $state(false);
   let confirmNew = $state(false);
   let confirmTimer = $state(null);
-  let copied = $state(false);
+  let exported = $state(false);
 
   let currentRound = $derived($tournament.currentRound);
   let rounds = $derived($tournament.rounds);
@@ -68,20 +68,43 @@
     resetTournament();
   }
 
-  function copyStandings() {
+  function csvEscape(value) {
+    const text = String(value ?? '');
+    if (/[",\n]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  }
+
+  function exportStandingsCsv() {
     const standings = computeStandings($tournament);
     const full = $tournament.scoreTracking === 'full';
-    let text = 'Pickleball Round-Robin Standings\n';
-    text += '================================\n';
-    standings.forEach((r, i) => {
-      text += `${i + 1}. ${r.name} — ${r.wins}W ${r.losses}L ${r.draws}D`;
-      if (full) text += ` (Sets: ${r.setsWon}-${r.setsLost})`;
-      text += '\n';
+
+    const headers = ['Rank', 'Name', 'W', 'L', 'D'];
+    if (full) headers.push('GW', 'GL', 'PW', 'PL', 'PD');
+    headers.push('GP');
+
+    const rows = standings.map((r, i) => {
+      const row = [i + 1, r.name, r.wins, r.losses, r.draws];
+      if (full) row.push(r.gamesWon, r.gamesLost, r.pointsWon, r.pointsLost, r.pointDiff);
+      row.push(r.gamesPlayed);
+      return row;
     });
-    navigator.clipboard.writeText(text).then(() => {
-      copied = true;
-      setTimeout(() => copied = false, 2000);
-    });
+
+    const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `pickleball-standings-${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    exported = true;
+    setTimeout(() => exported = false, 2000);
   }
 </script>
 
@@ -163,8 +186,8 @@
 
   <!-- Bottom actions -->
   <div class="bottom-actions">
-    <button class="btn text-btn" onclick={copyStandings}>
-      {copied ? 'Copied!' : 'Copy Standings'}
+    <button class="btn text-btn" onclick={exportStandingsCsv}>
+      {exported ? 'Exported!' : 'Export Standings CSV'}
     </button>
     <button class="btn danger-text" onclick={handleNewTournament}>
       {confirmNew ? 'Confirm?' : 'New Tournament'}

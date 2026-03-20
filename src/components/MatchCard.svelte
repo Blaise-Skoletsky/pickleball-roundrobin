@@ -1,12 +1,12 @@
 <script>
   import { updateTournament } from '../lib/state.js';
-  import { countSetsWon } from '../lib/pairing.js';
+  import { countGamesWon } from '../lib/pairing.js';
 
   let { match, roundIndex, matchIndex, players, scoreTracking, teamMembers, gameMode } = $props();
 
   let hasResult = $derived(match.winner !== null);
   let isDraw = $derived(match.winner === 'draw');
-  let setsWon = $derived(countSetsWon(match));
+  let gamesWon = $derived(countGamesWon(match));
 
   function teamLabel(indices) {
     if (gameMode === 'doubles-selected') {
@@ -38,40 +38,40 @@
     });
   }
 
-  function updateSetScore(setIdx, side, value) {
+  function updateGameScore(gameIdx, side, value) {
     const num = value === '' ? null : parseInt(value, 10);
     updateTournament(s => {
       const m = s.rounds[roundIndex].matches[matchIndex];
-      if (side === 1) m.sets[setIdx].s1 = num;
-      else m.sets[setIdx].s2 = num;
-      // Auto-determine winner from sets
-      autoWinnerFromSets(m);
+      if (side === 1) m.sets[gameIdx].s1 = num;
+      else m.sets[gameIdx].s2 = num;
+      // Auto-determine winner from games.
+      autoWinnerFromGames(m);
     });
   }
 
-  function addSet() {
+  function addGame() {
     updateTournament(s => {
       const m = s.rounds[roundIndex].matches[matchIndex];
       m.sets.push({ s1: null, s2: null });
     });
   }
 
-  function removeSet(setIdx) {
+  function removeGame(gameIdx) {
     updateTournament(s => {
       const m = s.rounds[roundIndex].matches[matchIndex];
       if (m.sets.length <= 1) return;
-      m.sets.splice(setIdx, 1);
-      autoWinnerFromSets(m);
+      m.sets.splice(gameIdx, 1);
+      autoWinnerFromGames(m);
     });
   }
 
-  function autoWinnerFromSets(m) {
-    const sw = countSetsWon(m);
-    if (sw.t1 === 0 && sw.t2 === 0) {
+  function autoWinnerFromGames(m) {
+    const gw = countGamesWon(m);
+    if (gw.t1 === 0 && gw.t2 === 0) {
       m.winner = null;
-    } else if (sw.t1 > sw.t2) {
+    } else if (gw.t1 > gw.t2) {
       m.winner = 1;
-    } else if (sw.t2 > sw.t1) {
+    } else if (gw.t2 > gw.t1) {
       m.winner = 2;
     } else {
       m.winner = 'draw';
@@ -125,8 +125,8 @@
   {#if scoreTracking === 'full'}
     <div class="sets-section">
       <div class="sets-header">
-        <span class="sets-label">Sets ({setsWon.t1} - {setsWon.t2})</span>
-        <button class="set-add-btn" onclick={addSet}>+ Set</button>
+        <span class="sets-label">Games ({gamesWon.t1} - {gamesWon.t2})</span>
+        <button class="set-add-btn" onclick={addGame}>+ Game</button>
       </div>
       {#each match.sets as set, si}
         <div class="set-row">
@@ -136,7 +136,7 @@
             min="0"
             placeholder="0"
             value={set.s1 ?? ''}
-            oninput={(e) => updateSetScore(si, 1, e.target.value)}
+            oninput={(e) => updateGameScore(si, 1, e.target.value)}
           />
           <span class="set-dash">-</span>
           <input
@@ -144,10 +144,10 @@
             min="0"
             placeholder="0"
             value={set.s2 ?? ''}
-            oninput={(e) => updateSetScore(si, 2, e.target.value)}
+            oninput={(e) => updateGameScore(si, 2, e.target.value)}
           />
           {#if match.sets.length > 1}
-            <button class="set-remove-btn" onclick={() => removeSet(si)}>x</button>
+            <button class="set-remove-btn" onclick={() => removeGame(si)}>x</button>
           {/if}
         </div>
       {/each}
@@ -241,7 +241,7 @@
   .draw-btn.active { border-color: #c9b458; background: #fef9e7; color: #7a6c1e; }
   .draw-btn:active { transform: scale(0.97); }
 
-  /* Sets section */
+  /* Games section */
   .sets-section {
     margin-top: 10px;
     border-top: 1px solid #f0f0f0;

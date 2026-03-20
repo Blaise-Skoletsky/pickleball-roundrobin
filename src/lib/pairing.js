@@ -53,23 +53,47 @@ function buildGamesPlayed(playerCount, rounds) {
   return counts;
 }
 
-/** Count sets won per side in a match. Returns {t1: number, t2: number} */
-export function countSetsWon(match) {
+/** Count games won per side in a match. Returns {t1: number, t2: number} */
+export function countGamesWon(match) {
   let t1 = 0, t2 = 0;
   if (!match.sets) return { t1, t2 };
-  for (const set of match.sets) {
-    if (set.s1 != null && set.s2 != null) {
-      if (set.s1 > set.s2) t1++;
-      else if (set.s2 > set.s1) t2++;
+  for (const game of match.sets) {
+    if (game.s1 != null && game.s2 != null) {
+      if (game.s1 > game.s2) t1++;
+      else if (game.s2 > game.s1) t2++;
     }
   }
   return { t1, t2 };
 }
 
-/** Get records: { wins, losses, draws, setsWon, setsLost } */
+// Backward-compatible export for existing imports.
+export const countSetsWon = countGamesWon;
+
+/** Count total points scored by each side in a match. Returns {t1: number, t2: number} */
+export function countPoints(match) {
+  let t1 = 0, t2 = 0;
+  if (!match.sets) return { t1, t2 };
+
+  for (const game of match.sets) {
+    if (game.s1 != null && game.s2 != null) {
+      t1 += game.s1;
+      t2 += game.s2;
+    }
+  }
+
+  return { t1, t2 };
+}
+
+/** Get records: { wins, losses, draws, gamesWon, gamesLost, pointsWon, pointsLost } */
 function buildRecords(playerCount, rounds) {
   const records = Array.from({ length: playerCount }, () => ({
-    wins: 0, losses: 0, draws: 0, setsWon: 0, setsLost: 0
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    gamesWon: 0,
+    gamesLost: 0,
+    pointsWon: 0,
+    pointsLost: 0
   }));
   for (const round of rounds) {
     for (const match of round.matches) {
@@ -82,9 +106,26 @@ function buildRecords(playerCount, rounds) {
         for (const p of winners) records[p].wins++;
         for (const p of losers) records[p].losses++;
       }
-      const sw = countSetsWon(match);
-      for (const p of match.team1) { records[p].setsWon += sw.t1; records[p].setsLost += sw.t2; }
-      for (const p of match.team2) { records[p].setsWon += sw.t2; records[p].setsLost += sw.t1; }
+
+      const gw = countGamesWon(match);
+      for (const p of match.team1) {
+        records[p].gamesWon += gw.t1;
+        records[p].gamesLost += gw.t2;
+      }
+      for (const p of match.team2) {
+        records[p].gamesWon += gw.t2;
+        records[p].gamesLost += gw.t1;
+      }
+
+      const pts = countPoints(match);
+      for (const p of match.team1) {
+        records[p].pointsWon += pts.t1;
+        records[p].pointsLost += pts.t2;
+      }
+      for (const p of match.team2) {
+        records[p].pointsWon += pts.t2;
+        records[p].pointsLost += pts.t1;
+      }
     }
   }
   return records;
@@ -213,8 +254,10 @@ function orderPlayers(players, method, playerCount, rounds) {
     arr.sort((a, b) => {
       const wd = records[b].wins - records[a].wins;
       if (wd !== 0) return wd;
-      const sd = records[b].setsWon - records[a].setsWon;
-      if (sd !== 0) return sd;
+      const gd = records[b].gamesWon - records[a].gamesWon;
+      if (gd !== 0) return gd;
+      const pd = (records[b].pointsWon - records[b].pointsLost) - (records[a].pointsWon - records[a].pointsLost);
+      if (pd !== 0) return pd;
       const dd = records[b].draws - records[a].draws;
       if (dd !== 0) return dd;
       return Math.random() - 0.5;
@@ -292,14 +335,18 @@ export function computeStandings(state) {
     wins: records[i].wins,
     losses: records[i].losses,
     draws: records[i].draws,
-    setsWon: records[i].setsWon,
-    setsLost: records[i].setsLost,
+    gamesWon: records[i].gamesWon,
+    gamesLost: records[i].gamesLost,
+    pointsWon: records[i].pointsWon,
+    pointsLost: records[i].pointsLost,
+    pointDiff: records[i].pointsWon - records[i].pointsLost,
     gamesPlayed: gamesPlayed[i]
   }));
 
   standings.sort((a, b) => {
     if (b.wins !== a.wins) return b.wins - a.wins;
-    if (state.scoreTracking === 'full' && b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+    if (state.scoreTracking === 'full' && b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
+    if (state.scoreTracking === 'full' && b.pointDiff !== a.pointDiff) return b.pointDiff - a.pointDiff;
     if (b.draws !== a.draws) return b.draws - a.draws;
     return a.gamesPlayed - b.gamesPlayed;
   });

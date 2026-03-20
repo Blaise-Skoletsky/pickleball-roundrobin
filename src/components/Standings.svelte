@@ -20,8 +20,11 @@
             <th>L</th>
             <th>D</th>
             {#if showFullScoring}
-              <th>SW</th>
-              <th>SL</th>
+              <th>GW</th>
+              <th>GL</th>
+              <th>PW</th>
+              <th>PL</th>
+              <th>PD</th>
             {/if}
             <th>GP</th>
           </tr>
@@ -35,8 +38,11 @@
               <td>{row.losses}</td>
               <td>{row.draws}</td>
               {#if showFullScoring}
-                <td class="positive">{row.setsWon}</td>
-                <td class="negative">{row.setsLost}</td>
+                <td class="positive">{row.gamesWon}</td>
+                <td class="negative">{row.gamesLost}</td>
+                <td class="positive">{row.pointsWon}</td>
+                <td class="negative">{row.pointsLost}</td>
+                <td class:positive={row.pointDiff > 0} class:negative={row.pointDiff < 0}>{row.pointDiff}</td>
               {/if}
               <td>{row.gamesPlayed}</td>
             </tr>
